@@ -35,7 +35,12 @@ git clone https://github.com/open-jarvis/OpenJarvis.git
 cd OpenJarvis
 uv sync                           # core framework
 uv sync --extra server             # + FastAPI server
+
+# Build the Rust extension (requires Rust: https://rustup.rs/)
+uv run maturin develop -m rust/crates/openjarvis-python/Cargo.toml
 ```
+
+> **Python 3.14+:** set `PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1` before the `maturin` command.
 
 You also need a local inference backend: [Ollama](https://ollama.com), [vLLM](https://github.com/vllm-project/vllm), [SGLang](https://github.com/sgl-project/sglang), or [llama.cpp](https://github.com/ggerganov/llama.cpp). Alternatively, use the `cloud` engine with [OpenAI](https://openai.com), [Anthropic](https://anthropic.com), [Google Gemini](https://ai.google.dev), [OpenRouter](https://openrouter.ai), or [MiniMax](https://www.minimax.io) by setting the corresponding API key environment variable.
 
@@ -67,6 +72,28 @@ uv run jarvis doctor
 ```
 
 `jarvis init` auto-detects your hardware and recommends the best engine. After init, it prints engine-specific next steps. Run `uv run jarvis doctor` at any time to diagnose configuration or connectivity issues.
+
+## Docker
+
+A Docker Compose configuration bundles Jarvis with Ollama:
+
+```bash
+# CPU-only (default)
+docker compose -f deploy/docker/docker-compose.yml up -d
+
+# NVIDIA GPU (requires NVIDIA Container Toolkit)
+docker compose -f deploy/docker/docker-compose.yml \
+  -f deploy/docker/docker-compose.gpu.nvidia.yml up -d
+
+# AMD GPU (requires ROCm)
+docker compose -f deploy/docker/docker-compose.yml \
+  -f deploy/docker/docker-compose.gpu.rocm.yml up -d
+
+# Pull a model into Ollama
+docker compose -f deploy/docker/docker-compose.yml exec ollama ollama pull qwen3:8b
+```
+
+Services: Jarvis on `:8000`, Ollama on `:11434`.
 
 ## Development
 
