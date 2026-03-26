@@ -26,6 +26,7 @@ from openjarvis.cli.operators_cmd import operators
 from openjarvis.cli.optimize_cmd import optimize_group
 from openjarvis.cli.quickstart_cmd import quickstart
 from openjarvis.cli.registry_cmd import registry
+from openjarvis.cli.scan_cmd import scan
 from openjarvis.cli.scheduler_cmd import scheduler
 from openjarvis.cli.serve import serve
 from openjarvis.cli.skill_cmd import skill
@@ -86,6 +87,7 @@ cli.add_command(compose, "compose")
 cli.add_command(gateway, "gateway")
 cli.add_command(tool, "tool")
 cli.add_command(registry, "registry")
+cli.add_command(scan, "scan")
 cli.add_command(config, "config")
 
 

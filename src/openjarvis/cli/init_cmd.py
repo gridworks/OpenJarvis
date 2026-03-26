@@ -136,6 +136,49 @@ def _next_steps_text(engine: str, model: str = "") -> str:
     return steps.get(engine, steps["ollama"])
 
 
+def _run_security_audit(console: Console) -> None:
+    """Run a condensed security audit and print a summary inline."""
+    from openjarvis.security.environment import Severity, run_all_checks
+
+    console.print()
+    console.print("[bold]Running security environment audit...[/bold]")
+
+    try:
+        report = run_all_checks()
+    except Exception as exc:
+        console.print(f"  [yellow]Audit failed: {exc}[/yellow]")
+        return
+
+    _ICONS = {
+        Severity.INFO: "[green]\u2713[/green]",
+        Severity.WARN: "[yellow]![/yellow]",
+        Severity.CRITICAL: "[red]\u2717[/red]",
+    }
+
+    for finding in report.findings:
+        icon = _ICONS.get(finding.severity, " ")
+        console.print(f"  {icon} {finding.title}")
+        if finding.severity in (Severity.WARN, Severity.CRITICAL) and finding.remediation:
+            console.print(f"      [dim]{finding.remediation}[/dim]")
+
+    console.print()
+    warn_count = len(report.by_severity(Severity.WARN))
+    crit_count = len(report.by_severity(Severity.CRITICAL))
+
+    if crit_count:
+        console.print(
+            f"  [red bold]{crit_count} critical issue(s) found.[/red bold] "
+            "Run [bold]jarvis scan[/bold] for full details."
+        )
+    elif warn_count:
+        console.print(
+            f"  [yellow]{warn_count} warning(s).[/yellow] "
+            "Run [bold]jarvis scan[/bold] for full details."
+        )
+    else:
+        console.print("  [green]Security environment looks good.[/green]")
+
+
 @click.command()
 @click.option(
     "--force", is_flag=True, help="Overwrite existing config without prompting."
@@ -157,11 +200,19 @@ def _next_steps_text(engine: str, model: str = "") -> str:
     default=None,
     help="Inference engine to use (skips interactive selection).",
 )
+@click.option(
+    "--no-scan",
+    "skip_scan",
+    is_flag=True,
+    default=False,
+    help="Skip the post-init security environment audit.",
+)
 def init(
     force: bool,
     config: Optional[Path],
     full_config: bool = False,
     engine: Optional[str] = None,
+    skip_scan: bool = False,
 ) -> None:
     """Detect hardware and generate ~/.openjarvis/config.toml."""
     console = Console()
@@ -296,3 +347,6 @@ def init(
             border_style="cyan",
         )
     )
+
+    if not skip_scan:
+        _run_security_audit(console)
