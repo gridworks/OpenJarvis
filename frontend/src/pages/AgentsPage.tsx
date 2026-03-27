@@ -20,6 +20,8 @@ import {
   fetchManagedAgent,
   fetchAvailableTools,
   saveToolCredentials,
+  fetchModels,
+  updateManagedAgent,
 } from '../lib/api';
 import type { AgentTask, ChannelBinding, AgentTemplate, AgentMessage, ManagedAgent, LearningLogEntry, AgentTrace, ToolInfo } from '../lib/api';
 import {
@@ -99,8 +101,7 @@ function StatusDot({ status }: { status: string }) {
 
 function formatCost(cost?: number): string {
   if (cost === undefined || cost === null) return '—';
-  if (cost < 0.01) return `$${(cost * 100).toFixed(2)}¢`;
-  return `$${cost.toFixed(3)}`;
+  return `$${cost.toFixed(4)}`;
 }
 
 function formatRelativeTime(ts?: number | null): string {
@@ -1163,30 +1164,119 @@ function AgentCard({
 }
 
 // ---------------------------------------------------------------------------
+// Detail view — Configuration grid with editable model
+// ---------------------------------------------------------------------------
+
+function AgentConfigGrid({ agent, onAgentUpdated }: { agent: ManagedAgent; onAgentUpdated: () => void }) {
+  const [editingModel, setEditingModel] = useState(false);
+  const [models, setModels] = useState<string[]>([]);
+  const currentModel = (agent.config?.model as string) || '(default)';
+
+  async function startEditing() {
+    try {
+      const fetched = await fetchModels();
+      setModels(fetched.map((m) => m.id));
+    } catch {
+      // ignore
+    }
+    setEditingModel(true);
+  }
+
+  async function changeModel(newModel: string) {
+    try {
+      const newConfig = { ...(agent.config || {}), model: newModel };
+      await updateManagedAgent(agent.id, { config: newConfig });
+      onAgentUpdated();
+    } catch {
+      // ignore
+    }
+    setEditingModel(false);
+  }
+
+  const rows: [string, React.ReactNode][] = [
+    ['Intelligence', editingModel ? (
+      <select
+        autoFocus
+        defaultValue={currentModel}
+        onChange={(e) => changeModel(e.target.value)}
+        onBlur={() => setEditingModel(false)}
+        className="text-sm rounded px-1 py-0.5"
+        style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+      >
+        {models.map((m) => <option key={m} value={m}>{m}</option>)}
+      </select>
+    ) : (
+      <span
+        onClick={startEditing}
+        className="cursor-pointer underline decoration-dotted"
+        style={{ color: 'var(--color-accent)' }}
+        title="Click to change model"
+      >
+        {currentModel}
+      </span>
+    )],
+    ['Agent Type', <span key="at">{agent.agent_type}</span>],
+    ['Schedule', <span key="sc">{formatSchedule(agent.schedule_type, agent.schedule_value)}</span>],
+    ['Last Run', <span key="lr">{formatRelativeTime(agent.last_run_at)}</span>],
+    ['Budget', <span key="bg">{agent.budget ? formatCost(agent.budget) : 'Unlimited'}</span>],
+    ['Learning', <span key="le">{agent.learning_enabled ? 'Enabled' : 'Disabled'}</span>],
+    ['Input Tokens', <span key="it">{String(agent.input_tokens ?? 0)}</span>],
+    ['Output Tokens', <span key="ot">{String(agent.output_tokens ?? 0)}</span>],
+  ];
+
+  return (
+    <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+      {rows.map(([label, value]) => (
+        <div key={label as string} className="flex gap-2 items-center text-sm">
+          <span className="font-medium" style={{ color: 'var(--color-text-secondary)', minWidth: 110 }}>{label}</span>
+          <span style={{ color: 'var(--color-text)' }}>{value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Detail view — Interact tab
 // ---------------------------------------------------------------------------
 
-function InteractTab({ agentId }: { agentId: string }) {
+function InteractTab({ agentId, agentStatus }: { agentId: string; agentStatus: string }) {
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [currentActivity, setCurrentActivity] = useState('');
+  const [liveStatus, setLiveStatus] = useState(agentStatus);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const loadMessages = useCallback(async () => {
+  const loadData = useCallback(async () => {
     try {
-      const msgs = await fetchAgentMessages(agentId);
+      const [msgs, agent] = await Promise.all([
+        fetchAgentMessages(agentId),
+        fetchManagedAgent(agentId),
+      ]);
       setMessages(msgs);
+      setLiveStatus(agent.status);
+      setCurrentActivity(agent.current_activity || '');
     } catch {
       // ignore
     }
   }, [agentId]);
 
   useEffect(() => {
-    loadMessages();
-  }, [loadMessages]);
+    loadData();
+    const interval = setInterval(loadData, 2000);
+    return () => clearInterval(interval);
+  }, [loadData]);
 
+  useEffect(() => { setLiveStatus(agentStatus); }, [agentStatus]);
+
+  // Scroll to bottom only on initial load, not on every poll update.
+  const hasScrolled = useRef(false);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!hasScrolled.current && messages.length > 0) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      hasScrolled.current = true;
+    }
   }, [messages]);
 
   async function handleSend(mode: 'immediate' | 'queued') {
@@ -1195,7 +1285,7 @@ function InteractTab({ agentId }: { agentId: string }) {
     try {
       await sendAgentMessage(agentId, input.trim(), mode);
       setInput('');
-      await loadMessages();
+      await loadData();
     } catch {
       // ignore
     } finally {
@@ -1203,15 +1293,24 @@ function InteractTab({ agentId }: { agentId: string }) {
     }
   }
 
+  // Reverse so newest messages appear at the bottom (closest to input).
+  // Filter out agent responses with empty content.
+  const displayMessages = [...messages]
+    .filter((m) => m.direction === 'user_to_agent' || m.content.trim())
+    .reverse();
+
+  const isAgentWorking = liveStatus === 'running';
+  const hasPending = messages.some((m) => m.status === 'pending');
+
   return (
     <div className="flex flex-col h-full" style={{ minHeight: 320 }}>
       <div className="flex-1 overflow-y-auto space-y-3 pb-4" style={{ maxHeight: 400 }}>
-        {messages.length === 0 && (
+        {displayMessages.length === 0 && !isAgentWorking && (
           <div className="text-sm text-center py-8" style={{ color: 'var(--color-text-tertiary)' }}>
             No messages yet. Send a message to interact with this agent.
           </div>
         )}
-        {messages.map((msg) => (
+        {displayMessages.map((msg) => (
           <div
             key={msg.id}
             className={`flex ${msg.direction === 'user_to_agent' ? 'justify-end' : 'justify-start'}`}
@@ -1225,14 +1324,30 @@ function InteractTab({ agentId }: { agentId: string }) {
               }}
             >
               <p>{msg.content}</p>
-              <p
-                className="text-xs mt-1 opacity-70"
-              >
-                {msg.mode} · {msg.status}
+              <p className="text-xs mt-1 opacity-70">
+                {msg.status === 'pending' ? 'sending...' : new Date(msg.created_at * 1000).toLocaleTimeString()}
               </p>
             </div>
           </div>
         ))}
+        {/* Progress indicator with live activity from the executor */}
+        {(isAgentWorking || hasPending) && (
+          <div className="flex justify-start">
+            <div
+              className="px-3 py-2 rounded-lg text-sm"
+              style={{
+                background: 'var(--color-bg-secondary)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-secondary)',
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <span className="inline-block w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--color-accent)' }} />
+                {sending ? 'Sending message...' : currentActivity || 'Agent is thinking...'}
+              </div>
+            </div>
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
       {/* Input area */}
@@ -1246,7 +1361,7 @@ function InteractTab({ agentId }: { agentId: string }) {
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
-              handleSend('queued');
+              handleSend('immediate');
             }
           }}
           placeholder="Send a message to this agent..."
@@ -1259,23 +1374,8 @@ function InteractTab({ agentId }: { agentId: string }) {
             disabled={sending || !input.trim()}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm cursor-pointer font-medium"
             style={{ background: 'var(--color-accent)', color: '#fff', opacity: sending || !input.trim() ? 0.5 : 1 }}
-            title="Send immediately (interrupts agent)"
           >
-            <Zap size={13} /> Immediate
-          </button>
-          <button
-            onClick={() => handleSend('queued')}
-            disabled={sending || !input.trim()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm cursor-pointer"
-            style={{
-              background: 'var(--color-bg-secondary)',
-              color: 'var(--color-text)',
-              border: '1px solid var(--color-border)',
-              opacity: sending || !input.trim() ? 0.5 : 1,
-            }}
-            title="Queue message for next run"
-          >
-            <Send size={13} /> Queue
+            <Send size={13} /> Send
           </button>
         </div>
       </div>
@@ -1701,71 +1801,38 @@ export function AgentsPage() {
 
         {/* Tab: Overview */}
         {detailTab === 'overview' && (
-          <div className="space-y-4">
-            {/* Stat cards */}
-            <div className="grid grid-cols-3 gap-3">
+          <div className="space-y-3">
+            {/* Stat cards — compact row */}
+            <div className="grid grid-cols-3 gap-2">
               {[
-                {
-                  label: 'Total Runs',
-                  value: String(selectedAgent.total_runs ?? 0),
-                  icon: Activity,
-                  color: '#3b82f6',
-                },
-                {
-                  label: 'Success Rate',
-                  value: successRate !== null ? `${successRate}%` : '—',
-                  icon: Zap,
-                  color: '#22c55e',
-                },
-                {
-                  label: 'Total Cost',
-                  value: formatCost(selectedAgent.total_cost),
-                  icon: DollarSign,
-                  color: '#f59e0b',
-                },
+                { label: 'Total Runs', value: String(selectedAgent.total_runs ?? 0), icon: Activity, color: '#3b82f6' },
+                { label: 'Success Rate', value: successRate !== null ? `${successRate}%` : '—', icon: Zap, color: '#22c55e' },
+                { label: 'Total Cost', value: formatCost(selectedAgent.total_cost), icon: DollarSign, color: '#f59e0b' },
               ].map(({ label, value, icon: Icon, color }) => (
                 <div
                   key={label}
-                  className="p-4 rounded-lg"
+                  className="p-3 rounded-lg flex items-center gap-3"
                   style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)' }}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <Icon size={14} style={{ color }} />
-                    <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                      {label}
-                    </span>
+                  <Icon size={16} style={{ color, flexShrink: 0 }} />
+                  <div>
+                    <p className="text-base font-semibold leading-tight" style={{ color: 'var(--color-text)' }}>{value}</p>
+                    <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{label}</p>
                   </div>
-                  <p className="text-xl font-semibold" style={{ color: 'var(--color-text)' }}>
-                    {value}
-                  </p>
                 </div>
               ))}
             </div>
 
-            {/* Config display */}
+            {/* Config display — tighter spacing */}
             <div
-              className="p-4 rounded-lg"
+              className="p-3 rounded-lg"
               style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)' }}
             >
-              <h3 className="text-sm font-medium mb-3" style={{ color: 'var(--color-text-secondary)' }}>
+              <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
                 Configuration
               </h3>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                {[
-                  ['Agent Type', selectedAgent.agent_type],
-                  ['Schedule', formatSchedule(selectedAgent.schedule_type, selectedAgent.schedule_value)],
-                  ['Last Run', formatRelativeTime(selectedAgent.last_run_at)],
-                  ['Budget', selectedAgent.budget ? formatCost(selectedAgent.budget) : 'Unlimited'],
-                  ['Learning', selectedAgent.learning_enabled ? 'Enabled' : 'Disabled'],
-                  ['Total Tokens', String(selectedAgent.total_tokens ?? 0)],
-                ].map(([k, v]) => (
-                  <div key={k} className="flex gap-2">
-                    <span style={{ color: 'var(--color-text-tertiary)', minWidth: 90 }}>{k}</span>
-                    <span style={{ color: 'var(--color-text)' }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--color-border)' }}>
+              <AgentConfigGrid agent={selectedAgent} onAgentUpdated={refresh} />
+              <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--color-border)' }}>
                 <span className="text-xs font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
                   ID: {selectedAgent.id}
                 </span>
@@ -1792,7 +1859,7 @@ export function AgentsPage() {
         )}
 
         {/* Tab: Interact */}
-        {detailTab === 'interact' && <InteractTab agentId={selectedAgent.id} />}
+        {detailTab === 'interact' && <InteractTab agentId={selectedAgent.id} agentStatus={selectedAgent.status} />}
 
         {/* Tab: Tasks */}
         {detailTab === 'tasks' && (
