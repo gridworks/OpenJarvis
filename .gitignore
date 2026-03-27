@@ -50,6 +50,9 @@ logs/
 traces/
 coding_task_*
 get-pip.py
+*.docx
+MagicMock/
+start-jarvis.sh
 
 # MkDocs build output
 site/
