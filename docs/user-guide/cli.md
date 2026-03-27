@@ -138,6 +138,91 @@ When using `--json` in **agent mode**, the output includes:
 
 ---
 
+## `jarvis chat`
+
+Start an interactive multi-turn conversation with the inference engine. The chat interface features a Claude Code-style slash command system — type `/` at any point to browse available commands with live filtering.
+
+```bash
+jarvis chat
+jarvis chat -m qwen3:8b
+jarvis chat -e ollama -a orchestrator
+```
+
+### Options
+
+| Option                    | Type   | Default | Description                          |
+|---------------------------|--------|---------|--------------------------------------|
+| `-m`, `--model MODEL`     | string | auto    | Model to use for inference           |
+| `-e`, `--engine ENGINE`   | string | auto    | Engine backend                       |
+| `-a`, `--agent AGENT`     | string | auto    | Agent type (`simple`, `orchestrator`, `react`, etc.) |
+| `--tools TOOLS`           | string | none    | Comma-separated tool names to enable |
+| `--system PROMPT`         | string | none    | Set a system prompt for the session  |
+
+### Slash Commands
+
+Type `/` to open an interactive command picker with live filtering. Typing characters after `/` narrows the list to matching commands. Use arrow keys to navigate, Enter to select.
+
+| Command          | Args           | Description                                  |
+|------------------|----------------|----------------------------------------------|
+| `/help`          |                | Show all available slash commands            |
+| `/quit`          |                | Exit the session                             |
+| `/clear`         |                | Clear conversation history                   |
+| `/compact`       |                | Summarize and compress history into one entry |
+| `/history`       |                | Show conversation history                    |
+| `/model`         | `[model-name]` | Show current model or switch to a new one   |
+| `/engine`        | `[engine-key]` | Show current engine or switch backends       |
+| `/agent`         | `[agent-name]` | Show current agent or switch agent type      |
+| `/system`        | `[prompt]`     | Show or update the system prompt             |
+| `/tools`         |                | List all registered tools                    |
+| `/status`        |                | Show engine, model, agent, and turn count    |
+| `/multiline`     |                | Toggle multiline input (end a turn with `.`) |
+| `/save`          | `<filename>`   | Save the conversation to a JSON file         |
+| `/load`          | `<filename>`   | Load a conversation from a JSON file         |
+
+### Keyboard Shortcuts
+
+| Key       | Action                                      |
+|-----------|---------------------------------------------|
+| `/`       | Open the slash command picker               |
+| `Tab`     | Accept highlighted completion               |
+| `↑` `↓`   | Navigate command suggestions                |
+| `Ctrl+C`  | Cancel the current input line               |
+| `Ctrl+D`  | Exit the session                            |
+
+### Usage Examples
+
+```bash
+# Start a basic chat session
+jarvis chat
+
+# Chat with a specific model and engine
+jarvis chat -m qwen3:8b -e ollama
+
+# Start with a system prompt
+jarvis chat --system "You are a concise assistant. Keep answers under 3 sentences."
+
+# Use an agent with tools
+jarvis chat -a orchestrator --tools calculator,web_search
+
+# Save a session and resume it later
+# Inside chat: /save session.json
+# Next time:   /load session.json
+```
+
+### Multiline Input
+
+Toggle multiline mode with `/multiline`. Once enabled, press Enter to add new lines and enter a lone `.` on its own line to submit the turn.
+
+```
+> /multiline
+Multiline on. (end each turn with a lone '.')
+... > def hello():
+... >     print("hello")
+... > .
+```
+
+---
+
 ## `jarvis model`
 
 Manage and inspect language models available on running engines.
