@@ -1,4 +1,7 @@
-"""Apple Silicon energy monitor — via zeus-ml[apple], battery drain, or CPU-time estimation.
+"""Apple Silicon energy monitor.
+
+Uses zeus-ml[apple], battery drain, or CPU-time estimation.
+"""
 
 Measurement priority:
   1. zeus-ml AppleSiliconMonitor  — per-component IOKit counters (~5% error)

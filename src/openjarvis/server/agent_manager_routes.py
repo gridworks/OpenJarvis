@@ -240,7 +240,10 @@ def build_tools_list() -> List[Dict[str, Any]]:
             items.append(
                 {
                     "name": name,
-                    "description": f"{name.replace('_', ' ').title()} messaging channel",
+                    "description": (
+                        f"{name.replace('_', ' ').title()} "
+                        "messaging channel"
+                    ),
                     "category": "communication",
                     "source": "channel",
                     "requires_credentials": len(cred_keys) > 0,
