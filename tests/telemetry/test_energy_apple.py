@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 import types
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -191,7 +191,11 @@ class TestSampleBatteryDrain:
         with (
             patch.object(_BatteryPoller, "start"),
             patch.object(_BatteryPoller, "stop", return_value=fake_samples),
-            patch.object(_BatteryPoller, "on_battery", new_callable=lambda: property(lambda self: True)),
+            patch.object(
+                _BatteryPoller,
+                "on_battery",
+                new_callable=lambda: property(lambda self: True),
+            ),
             patch("time.monotonic", side_effect=[0.0, 1.2]),
         ):
             with monitor.sample() as result:
@@ -213,7 +217,11 @@ class TestSampleBatteryDrain:
         with (
             patch.object(_BatteryPoller, "start"),
             patch.object(_BatteryPoller, "stop", return_value=fake_samples),
-            patch.object(_BatteryPoller, "on_battery", new_callable=lambda: property(lambda self: False)),
+            patch.object(
+                _BatteryPoller,
+                "on_battery",
+                new_callable=lambda: property(lambda self: False),
+            ),
             patch("time.monotonic", side_effect=[0.0, 1.0]),
         ):
             with monitor.sample() as result:
@@ -231,7 +239,11 @@ class TestSampleBatteryDrain:
         with (
             patch.object(_BatteryPoller, "start"),
             patch.object(_BatteryPoller, "stop", return_value=fake_samples),
-            patch.object(_BatteryPoller, "on_battery", new_callable=lambda: property(lambda self: True)),
+            patch.object(
+                _BatteryPoller,
+                "on_battery",
+                new_callable=lambda: property(lambda self: True),
+            ),
             patch("time.monotonic", side_effect=[0.0, 1.0]),
         ):
             with monitor.sample() as result:
@@ -254,7 +266,11 @@ class TestSampleBatteryDrain:
         with (
             patch.object(_BatteryPoller, "start"),
             patch.object(_BatteryPoller, "stop", return_value=[]),
-            patch.object(_BatteryPoller, "on_battery", new_callable=lambda: property(lambda self: True)),
+            patch.object(
+                _BatteryPoller,
+                "on_battery",
+                new_callable=lambda: property(lambda self: True),
+            ),
             patch("time.monotonic", side_effect=[0.0, 0.5]),
         ):
             with monitor.sample() as result:
@@ -319,14 +335,19 @@ class TestReadBatteryWatts:
     def test_parses_discharge_rate_and_voltage(self):
         """Happy-path: discharging battery returns (watts, on_battery=True)."""
         import plistlib
+
         from openjarvis.telemetry.energy_apple import _read_battery_watts
 
-        fake_plist = plistlib.dumps([{
-            "CurrentDischargeRate": 2000,   # 2000 mA
-            "Voltage": 12000,               # 12000 mV → 12V
-            "IsCharging": False,
-            "ExternalConnected": False,
-        }])
+        fake_plist = plistlib.dumps(
+            [
+                {
+                    "CurrentDischargeRate": 2000,  # 2000 mA
+                    "Voltage": 12000,  # 12000 mV → 12V
+                    "IsCharging": False,
+                    "ExternalConnected": False,
+                }
+            ]
+        )
 
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout=fake_plist)
@@ -339,14 +360,19 @@ class TestReadBatteryWatts:
 
     def test_ac_connected_sets_on_battery_false(self):
         import plistlib
+
         from openjarvis.telemetry.energy_apple import _read_battery_watts
 
-        fake_plist = plistlib.dumps([{
-            "CurrentDischargeRate": 500,
-            "Voltage": 12000,
-            "IsCharging": False,
-            "ExternalConnected": True,
-        }])
+        fake_plist = plistlib.dumps(
+            [
+                {
+                    "CurrentDischargeRate": 500,
+                    "Voltage": 12000,
+                    "IsCharging": False,
+                    "ExternalConnected": True,
+                }
+            ]
+        )
 
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout=fake_plist)
@@ -359,14 +385,19 @@ class TestReadBatteryWatts:
     def test_charging_suppresses_noise(self):
         """When IsCharging=True and watts < 0.5, return 0.0 watts."""
         import plistlib
+
         from openjarvis.telemetry.energy_apple import _read_battery_watts
 
-        fake_plist = plistlib.dumps([{
-            "CurrentDischargeRate": 10,
-            "Voltage": 12000,
-            "IsCharging": True,
-            "ExternalConnected": True,
-        }])
+        fake_plist = plistlib.dumps(
+            [
+                {
+                    "CurrentDischargeRate": 10,
+                    "Voltage": 12000,
+                    "IsCharging": True,
+                    "ExternalConnected": True,
+                }
+            ]
+        )
 
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout=fake_plist)

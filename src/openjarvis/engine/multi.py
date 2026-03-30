@@ -73,8 +73,11 @@ class MultiEngine(InferenceEngine):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         return self._engine_for(model).generate(
-            messages, model=model, temperature=temperature,
-            max_tokens=max_tokens, **kwargs,
+            messages,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs,
         )
 
     async def stream(
@@ -87,8 +90,11 @@ class MultiEngine(InferenceEngine):
         **kwargs: Any,
     ) -> AsyncIterator[str]:
         async for token in self._engine_for(model).stream(
-            messages, model=model, temperature=temperature,
-            max_tokens=max_tokens, **kwargs,
+            messages,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs,
         ):
             yield token
 

@@ -59,8 +59,12 @@ class FeedbackRequest(BaseModel):
 
 
 _BROWSER_SUB_TOOLS = {
-    "browser_navigate", "browser_click", "browser_type",
-    "browser_screenshot", "browser_extract", "browser_axtree",
+    "browser_navigate",
+    "browser_click",
+    "browser_type",
+    "browser_screenshot",
+    "browser_extract",
+    "browser_axtree",
 }
 
 
@@ -76,7 +80,9 @@ class _LightweightSystem:
 
 
 def _make_lightweight_system(
-    engine: Any, model: str, config: Any = None,
+    engine: Any,
+    model: str,
+    config: Any = None,
 ) -> _LightweightSystem:
     """Build a minimal system with a plain OllamaEngine.
 
@@ -135,9 +141,8 @@ def _ensure_registries_populated() -> None:
     # If registries are still empty, reload individual submodules from sys.modules
     if not ChannelRegistry.keys():
         for mod_name in list(sys.modules):
-            if (
-                mod_name.startswith("openjarvis.channels.")
-                and not mod_name.endswith("_stubs")
+            if mod_name.startswith("openjarvis.channels.") and not mod_name.endswith(
+                "_stubs"
             ):
                 try:
                     importlib.reload(sys.modules[mod_name])
@@ -192,53 +197,61 @@ def build_tools_list() -> List[Dict[str, Any]]:
                 except Exception:
                     spec = None
             cred_keys = TOOL_CREDENTIALS.get(name, [])
-            items.append({
-                "name": name,
-                "description": spec.description if spec else "",
-                "category": spec.category if spec else "",
-                "source": "tool",
-                "requires_credentials": len(cred_keys) > 0,
-                "credential_keys": cred_keys,
-                "configured": (
-                    all(bool(os.environ.get(k)) for k in cred_keys)
-                    if cred_keys else True
-                ),
-            })
+            items.append(
+                {
+                    "name": name,
+                    "description": spec.description if spec else "",
+                    "category": spec.category if spec else "",
+                    "source": "tool",
+                    "requires_credentials": len(cred_keys) > 0,
+                    "credential_keys": cred_keys,
+                    "configured": (
+                        all(bool(os.environ.get(k)) for k in cred_keys)
+                        if cred_keys
+                        else True
+                    ),
+                }
+            )
     except Exception:
         pass
 
     try:
         if any(ToolRegistry.contains(n) for n in _BROWSER_SUB_TOOLS):
-            items.append({
-                "name": "browser",
-                "description": (
-                    "Web browser automation"
-                    " (navigate, click, type, screenshot, extract)"
-                ),
-                "category": "browser",
-                "source": "tool",
-                "requires_credentials": False,
-                "credential_keys": [],
-                "configured": True,
-            })
+            items.append(
+                {
+                    "name": "browser",
+                    "description": (
+                        "Web browser automation"
+                        " (navigate, click, type, screenshot, extract)"
+                    ),
+                    "category": "browser",
+                    "source": "tool",
+                    "requires_credentials": False,
+                    "credential_keys": [],
+                    "configured": True,
+                }
+            )
     except Exception:
         pass
 
     try:
         for name, _cls in ChannelRegistry.items():
             cred_keys = TOOL_CREDENTIALS.get(name, [])
-            items.append({
-                "name": name,
-                "description": f"{name.replace('_', ' ').title()} messaging channel",
-                "category": "communication",
-                "source": "channel",
-                "requires_credentials": len(cred_keys) > 0,
-                "credential_keys": cred_keys,
-                "configured": (
-                    all(bool(os.environ.get(k)) for k in cred_keys)
-                    if cred_keys else True
-                ),
-            })
+            items.append(
+                {
+                    "name": name,
+                    "description": f"{name.replace('_', ' ').title()} messaging channel",
+                    "category": "communication",
+                    "source": "channel",
+                    "requires_credentials": len(cred_keys) > 0,
+                    "credential_keys": cred_keys,
+                    "configured": (
+                        all(bool(os.environ.get(k)) for k in cred_keys)
+                        if cred_keys
+                        else True
+                    ),
+                }
+            )
     except Exception:
         pass
 
@@ -281,7 +294,8 @@ async def _stream_managed_agent(
         agent_cls = AgentRegistry.get("orchestrator")
     if agent_cls is None:
         raise HTTPException(
-            status_code=500, detail=f"Agent type '{agent_type}' not found in registry",
+            status_code=500,
+            detail=f"Agent type '{agent_type}' not found in registry",
         )
 
     # Build agent constructor kwargs from config
@@ -340,11 +354,13 @@ async def _stream_managed_agent(
                 "id": chunk_id,
                 "object": "chat.completion.chunk",
                 "model": model,
-                "choices": [{
-                    "index": 0,
-                    "delta": {"content": f"Error: {exc}"},
-                    "finish_reason": "stop",
-                }],
+                "choices": [
+                    {
+                        "index": 0,
+                        "delta": {"content": f"Error: {exc}"},
+                        "finish_reason": "stop",
+                    }
+                ],
             }
             yield f"data: {json.dumps(error_data)}\n\n"
             yield "data: [DONE]\n\n"
@@ -357,12 +373,14 @@ async def _stream_managed_agent(
         if result.tool_results:
             tool_data = []
             for tr in result.tool_results:
-                tool_data.append({
-                    "tool_name": tr.tool_name,
-                    "success": tr.success,
-                    "output": tr.content,
-                    "latency_ms": tr.latency_seconds * 1000,
-                })
+                tool_data.append(
+                    {
+                        "tool_name": tr.tool_name,
+                        "success": tr.success,
+                        "output": tr.content,
+                        "latency_ms": tr.latency_seconds * 1000,
+                    }
+                )
             yield f"event: tool_results\ndata: {json.dumps({'results': tool_data})}\n\n"
 
         # Stream content word-by-word for real-time feel
@@ -374,11 +392,13 @@ async def _stream_managed_agent(
                     "id": chunk_id,
                     "object": "chat.completion.chunk",
                     "model": model,
-                    "choices": [{
-                        "index": 0,
-                        "delta": {"content": token},
-                        "finish_reason": None,
-                    }],
+                    "choices": [
+                        {
+                            "index": 0,
+                            "delta": {"content": token},
+                            "finish_reason": None,
+                        }
+                    ],
                 }
                 yield f"data: {json.dumps(chunk_data)}\n\n"
                 await asyncio.sleep(0.012)
@@ -388,11 +408,13 @@ async def _stream_managed_agent(
             "id": chunk_id,
             "object": "chat.completion.chunk",
             "model": model,
-            "choices": [{
-                "index": 0,
-                "delta": {},
-                "finish_reason": "stop",
-            }],
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {},
+                    "finish_reason": "stop",
+                }
+            ],
         }
         yield f"data: {json.dumps(final_data)}\n\n"
         yield "data: [DONE]\n\n"
@@ -403,7 +425,9 @@ async def _stream_managed_agent(
                 manager.store_agent_response(agent_id, collected_content)
             except Exception as store_exc:
                 logger.error(
-                    "Failed to store agent response: %s", store_exc, exc_info=True,
+                    "Failed to store agent response: %s",
+                    store_exc,
+                    exc_info=True,
                 )
 
     return StreamingResponse(
@@ -507,9 +531,7 @@ def create_agent_manager_router(
         try:
             manager.start_tick(agent_id)
         except ValueError:
-            raise HTTPException(
-                status_code=409, detail="Agent is already running"
-            )
+            raise HTTPException(status_code=409, detail="Agent is already running")
 
         # Re-use the server's engine + model so we don't pick a
         # random model from Ollama's list.
@@ -523,17 +545,22 @@ def create_agent_manager_router(
                 from openjarvis.core.events import get_event_bus
 
                 executor = AgentExecutor(
-                    manager=manager, event_bus=get_event_bus(),
+                    manager=manager,
+                    event_bus=get_event_bus(),
                 )
                 system = _make_lightweight_system(
-                    server_engine, server_model, server_config,
+                    server_engine,
+                    server_model,
+                    server_config,
                 )
                 executor.set_system(system)
                 executor.execute_tick(agent_id)
             except Exception as exc:
                 logger.error(
                     "Run-tick failed for agent %s: %s",
-                    agent_id, exc, exc_info=True,
+                    agent_id,
+                    exc,
+                    exc_info=True,
                 )
                 try:
                     manager.end_tick(agent_id)
@@ -630,7 +657,8 @@ def create_agent_manager_router(
 
         # Auto-recover error-state agents on immediate messages
         if req.mode == "immediate" and agent_record["status"] in (
-            "error", "needs_attention",
+            "error",
+            "needs_attention",
         ):
             manager.update_agent(agent_id, status="idle")
 
@@ -657,33 +685,39 @@ def create_agent_manager_router(
             def _immediate_tick():
                 _start = _time.time()
                 logger.info(
-                    "Immediate tick starting for agent %s "
-                    "(model=%s)",
-                    agent_id, _srv_model,
+                    "Immediate tick starting for agent %s (model=%s)",
+                    agent_id,
+                    _srv_model,
                 )
                 try:
                     executor = AgentExecutor(
-                        manager=manager, event_bus=get_event_bus(),
+                        manager=manager,
+                        event_bus=get_event_bus(),
                     )
                     system = _make_lightweight_system(
-                        _srv_engine, _srv_model, _srv_config,
+                        _srv_engine,
+                        _srv_model,
+                        _srv_config,
                     )
                     executor.set_system(system)
                     logger.info(
                         "Immediate tick: system ready in %.1fs, "
                         "executing tick for agent %s",
-                        _time.time() - _start, agent_id,
+                        _time.time() - _start,
+                        agent_id,
                     )
                     executor.execute_tick(agent_id)
                     logger.info(
-                        "Immediate tick completed for agent %s "
-                        "in %.1fs",
-                        agent_id, _time.time() - _start,
+                        "Immediate tick completed for agent %s in %.1fs",
+                        agent_id,
+                        _time.time() - _start,
                     )
                 except Exception as exc:
                     logger.error(
                         "Immediate tick failed for agent %s: %s",
-                        agent_id, exc, exc_info=True,
+                        agent_id,
+                        exc,
+                        exc_info=True,
                     )
                     try:
                         manager.end_tick(agent_id)
@@ -691,11 +725,13 @@ def create_agent_manager_router(
                         pass
                     manager.update_agent(agent_id, status="error")
                     manager.update_summary_memory(
-                        agent_id, f"ERROR: {exc}",
+                        agent_id,
+                        f"ERROR: {exc}",
                     )
 
             threading.Thread(
-                target=_immediate_tick, daemon=True,
+                target=_immediate_tick,
+                daemon=True,
             ).start()
             return msg
 
@@ -820,9 +856,7 @@ def create_agent_manager_router(
 
     @templates_router.post("/{template_id}/instantiate")
     async def instantiate_template(template_id: str, req: CreateAgentRequest):
-        return manager.create_from_template(
-            template_id, req.name, overrides=req.config
-        )
+        return manager.create_from_template(template_id, req.name, overrides=req.config)
 
     # ── Global agent endpoints ───────────────────────────────
 
@@ -871,6 +905,7 @@ def create_agent_manager_router(
     @tools_router.get("/{tool_name}/credentials/status")
     def credential_status(tool_name: str):
         from openjarvis.core.credentials import get_credential_status
+
         return get_credential_status(tool_name)
 
     return agents_router, templates_router, global_router, tools_router

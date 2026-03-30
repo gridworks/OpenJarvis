@@ -71,7 +71,9 @@ class MCPClient:
         ]
 
     def call_tool(
-        self, name: str, arguments: Dict[str, Any] | None = None,
+        self,
+        name: str,
+        arguments: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """Call a tool on the server.
 

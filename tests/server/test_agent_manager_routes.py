@@ -296,7 +296,8 @@ class TestAgentManagerStreaming:
     def test_send_message_stream(self, manager, stream_client, _mock_agent_cls):
         """Test streaming mode returns SSE response with [DONE] sentinel."""
         agent = manager.create_agent(
-            name="streamer", agent_type="_test_stream",
+            name="streamer",
+            agent_type="_test_stream",
         )
         resp = stream_client.post(
             f"/v1/managed-agents/{agent['id']}/messages",
@@ -315,7 +316,8 @@ class TestAgentManagerStreaming:
     def test_send_message_stream_content(self, manager, stream_client, _mock_agent_cls):
         """Test streaming returns the correct agent response content."""
         agent = manager.create_agent(
-            name="streamer2", agent_type="_test_stream",
+            name="streamer2",
+            agent_type="_test_stream",
         )
         resp = stream_client.post(
             f"/v1/managed-agents/{agent['id']}/messages",
@@ -340,11 +342,15 @@ class TestAgentManagerStreaming:
         assert content == "Echo: Hello world"
 
     def test_send_message_stream_stores_response(
-        self, manager, stream_client, _mock_agent_cls,
+        self,
+        manager,
+        stream_client,
+        _mock_agent_cls,
     ):
         """After streaming, agent response is persisted in the DB."""
         agent = manager.create_agent(
-            name="streamer3", agent_type="_test_stream",
+            name="streamer3",
+            agent_type="_test_stream",
         )
         resp = stream_client.post(
             f"/v1/managed-agents/{agent['id']}/messages",
@@ -363,11 +369,15 @@ class TestAgentManagerStreaming:
         assert "persist me" in agent_msg["content"]
 
     def test_send_message_stream_finish_reason(
-        self, manager, stream_client, _mock_agent_cls,
+        self,
+        manager,
+        stream_client,
+        _mock_agent_cls,
     ):
         """The final chunk before [DONE] has finish_reason='stop'."""
         agent = manager.create_agent(
-            name="streamer4", agent_type="_test_stream",
+            name="streamer4",
+            agent_type="_test_stream",
         )
         resp = stream_client.post(
             f"/v1/managed-agents/{agent['id']}/messages",

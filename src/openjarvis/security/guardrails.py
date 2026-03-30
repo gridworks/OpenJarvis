@@ -50,10 +50,14 @@ class GuardrailsEngine(InferenceEngine):
         bus: Optional[EventBus] = None,
     ) -> None:
         self._engine = engine
-        self._scanners: List[BaseScanner] = scanners if scanners is not None else [
-            SecretScanner(),
-            PIIScanner(),
-        ]
+        self._scanners: List[BaseScanner] = (
+            scanners
+            if scanners is not None
+            else [
+                SecretScanner(),
+                PIIScanner(),
+            ]
+        )
         self._mode = mode
         self._scan_input = scan_input
         self._scan_output = scan_output
@@ -180,7 +184,9 @@ class GuardrailsEngine(InferenceEngine):
                         processed[i] = Message(
                             role=msg.role,
                             content=self._handle_findings(
-                                msg.content, result, "input",
+                                msg.content,
+                                result,
+                                "input",
                             ),
                             name=msg.name,
                             tool_calls=msg.tool_calls,
@@ -191,8 +197,11 @@ class GuardrailsEngine(InferenceEngine):
 
         # Call wrapped engine
         response = self._engine.generate(
-            messages, model=model, temperature=temperature,
-            max_tokens=max_tokens, **kwargs,
+            messages,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs,
         )
 
         # Scan output
@@ -219,8 +228,11 @@ class GuardrailsEngine(InferenceEngine):
         """Yield tokens in real-time, scan accumulated output post-hoc."""
         accumulated = []
         async for token in self._engine.stream(
-            messages, model=model, temperature=temperature,
-            max_tokens=max_tokens, **kwargs,
+            messages,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs,
         ):
             accumulated.append(token)
             yield token

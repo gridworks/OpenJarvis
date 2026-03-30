@@ -129,7 +129,7 @@ class _OpenAICompatibleEngine(InferenceEngine):
                 for line in resp.iter_lines():
                     if not line.startswith("data:"):
                         continue
-                    data_str = line[len("data:"):].strip()
+                    data_str = line[len("data:") :].strip()
                     if data_str == "[DONE]":
                         break
                     try:
@@ -150,11 +150,15 @@ class _OpenAICompatibleEngine(InferenceEngine):
             resp = self._client.get(f"{self._api_prefix}/models")
             resp.raise_for_status()
         except (
-            httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError,
+            httpx.ConnectError,
+            httpx.TimeoutException,
+            httpx.HTTPStatusError,
         ) as exc:
             logger.warning(
                 "Failed to list models from %s at %s: %s",
-                self.engine_id, self._host, exc,
+                self.engine_id,
+                self._host,
+                exc,
             )
             return []
         data = resp.json()
@@ -167,7 +171,9 @@ class _OpenAICompatibleEngine(InferenceEngine):
         except Exception as exc:
             logger.debug(
                 "%s health check failed at %s: %s",
-                self.engine_id, self._host, exc,
+                self.engine_id,
+                self._host,
+                exc,
             )
             return False
 

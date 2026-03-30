@@ -31,9 +31,7 @@ class _NoCacheStaticFiles(StaticFiles):
     async def __call__(self, scope, receive, send):
         async def _send_with_headers(message):
             if message["type"] == "http.response.start":
-                extra = [
-                    (k.encode(), v.encode()) for k, v in _NO_CACHE_HEADERS.items()
-                ]
+                extra = [(k.encode(), v.encode()) for k, v in _NO_CACHE_HEADERS.items()]
                 # Remove etag and last-modified
                 existing = [
                     (k, v)
@@ -85,6 +83,7 @@ def create_app(
     )
 
     from fastapi.middleware.cors import CORSMiddleware
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],

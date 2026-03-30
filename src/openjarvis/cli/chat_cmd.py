@@ -1,4 +1,7 @@
-"""``jarvis chat`` — interactive multi-turn chat REPL with Claude Code-style slash commands."""
+"""``jarvis chat`` — interactive multi-turn chat REPL.
+
+Includes Claude Code-style slash commands.
+"""
 
 from __future__ import annotations
 
@@ -27,31 +30,32 @@ from openjarvis.core.types import Message, Role
 
 # (description, args-hint)
 SLASH_COMMANDS: dict[str, tuple[str, str]] = {
-    "/help":      ("Show available slash commands",        ""),
-    "/quit":      ("Exit the session",                     ""),
-    "/clear":     ("Clear conversation history",           ""),
-    "/compact":   ("Summarize and compress history",       ""),
-    "/history":   ("Show conversation history",            ""),
-    "/model":     ("Show or switch model",                 "[model-name]"),
-    "/engine":    ("Show or switch inference engine",      "[engine-key]"),
-    "/agent":     ("Show or switch agent",                 "[agent-name]"),
-    "/system":    ("Show or set system prompt",            "[prompt]"),
-    "/tools":     ("List available tools",                 ""),
-    "/status":    ("Show session status",                  ""),
-    "/multiline": ("Toggle multiline input (end with .)",  ""),
-    "/save":      ("Save conversation to a JSON file",     "<filename>"),
-    "/load":      ("Load conversation from a JSON file",   "<filename>"),
+    "/help": ("Show available slash commands", ""),
+    "/quit": ("Exit the session", ""),
+    "/clear": ("Clear conversation history", ""),
+    "/compact": ("Summarize and compress history", ""),
+    "/history": ("Show conversation history", ""),
+    "/model": ("Show or switch model", "[model-name]"),
+    "/engine": ("Show or switch inference engine", "[engine-key]"),
+    "/agent": ("Show or switch agent", "[agent-name]"),
+    "/system": ("Show or set system prompt", "[prompt]"),
+    "/tools": ("List available tools", ""),
+    "/status": ("Show session status", ""),
+    "/multiline": ("Toggle multiline input (end with .)", ""),
+    "/save": ("Save conversation to a JSON file", "<filename>"),
+    "/load": ("Load conversation from a JSON file", "<filename>"),
 }
 
 _CMD_ALIASES: dict[str, str] = {
     "/exit": "/quit",
-    "/q":    "/quit",
+    "/q": "/quit",
 }
 
 
 # ---------------------------------------------------------------------------
 # Completer — activates on '/', filters as you type
 # ---------------------------------------------------------------------------
+
 
 class _SlashCompleter(Completer):
     """Shows slash commands the moment '/' is typed; filters with each keystroke."""
@@ -75,6 +79,7 @@ class _SlashCompleter(Completer):
 # Input helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_session() -> PromptSession:
     return PromptSession(
         completer=_SlashCompleter(),
@@ -84,7 +89,9 @@ def _make_session() -> PromptSession:
     )
 
 
-def _read_input(session: PromptSession, prompt_str: str, multiline: bool) -> Optional[str]:
+def _read_input(
+    session: PromptSession, prompt_str: str, multiline: bool
+) -> Optional[str]:
     """Read one user turn.
 
     Returns:
@@ -94,9 +101,9 @@ def _read_input(session: PromptSession, prompt_str: str, multiline: bool) -> Opt
     try:
         line = session.prompt(prompt_str)
     except KeyboardInterrupt:
-        return ""       # Ctrl+C cancels current line; REPL continues
+        return ""  # Ctrl+C cancels current line; REPL continues
     except EOFError:
-        return None     # Ctrl+D exits
+        return None  # Ctrl+D exits
 
     if not multiline:
         return line
@@ -116,14 +123,19 @@ def _read_input(session: PromptSession, prompt_str: str, multiline: bool) -> Opt
 
 def _print_help(console: Console) -> None:
     table = Table(show_header=False, box=None, padding=(0, 2, 0, 0))
-    table.add_column("cmd",  style="bold cyan", no_wrap=True)
-    table.add_column("args", style="dim",       no_wrap=True)
+    table.add_column("cmd", style="bold cyan", no_wrap=True)
+    table.add_column("args", style="dim", no_wrap=True)
     table.add_column("desc", style="white")
     for cmd, (desc, args) in SLASH_COMMANDS.items():
         table.add_row(cmd, args or "", desc)
     console.print(
-        Panel(table, title="[bold]Commands[/bold]", title_align="left",
-              border_style="dim", padding=(0, 1))
+        Panel(
+            table,
+            title="[bold]Commands[/bold]",
+            title_align="left",
+            border_style="dim",
+            padding=(0, 1),
+        )
     )
 
 
@@ -131,12 +143,13 @@ def _print_help(console: Console) -> None:
 # Main command
 # ---------------------------------------------------------------------------
 
+
 @click.command()
-@click.option("-e", "--engine", "engine_key",    default=None, help="Engine backend.")
-@click.option("-m", "--model",  "model_name",    default=None, help="Model to use.")
-@click.option("-a", "--agent",  "agent_name",    default=None, help="Agent type.")
-@click.option("--tools",                         default=None, help="Comma-separated tool names.")
-@click.option("--system",       "system_prompt", default=None, help="Custom system prompt.")
+@click.option("-e", "--engine", "engine_key", default=None, help="Engine backend.")
+@click.option("-m", "--model", "model_name", default=None, help="Model to use.")
+@click.option("-a", "--agent", "agent_name", default=None, help="Agent type.")
+@click.option("--tools", default=None, help="Comma-separated tool names.")
+@click.option("--system", "system_prompt", default=None, help="Custom system prompt.")
 def chat(
     engine_key: str | None,
     model_name: str | None,
@@ -150,7 +163,7 @@ def chat(
     """
     console = Console(stderr=True)
     session = _make_session()
-    config  = load_config()
+    config = load_config()
 
     # ---- Engine ----------------------------------------------------------------
     from openjarvis.engine import get_engine
@@ -168,8 +181,8 @@ def chat(
     if not model:
         from openjarvis.engine import discover_engines, discover_models
 
-        all_engines   = discover_engines(config)
-        all_models    = discover_models(all_engines)
+        all_engines = discover_engines(config)
+        all_models = discover_models(all_engines)
         engine_models = all_models.get(engine_name, [])
         if engine_models:
             model = engine_models[0]
@@ -178,7 +191,7 @@ def chat(
             sys.exit(1)
 
     # ---- Agent (optional) ------------------------------------------------------
-    agent     = None
+    agent = None
     agent_key: str | None = agent_name or config.agent.default_agent
 
     def _load_agent(key: str | None) -> None:
@@ -228,10 +241,10 @@ def chat(
                     ans = input().strip().lower()
                     return ans in ("y", "yes")
 
-                kwargs["interactive"]      = True
+                kwargs["interactive"] = True
                 kwargs["confirm_callback"] = _confirm
 
-            agent     = agent_cls(engine, model, **kwargs)
+            agent = agent_cls(engine, model, **kwargs)
             agent_key = key
         except Exception as exc:
             console.print(f"[yellow]Agent '{key}' failed to load: {exc}[/yellow]")
@@ -240,9 +253,11 @@ def chat(
 
     # ---- Banner ----------------------------------------------------------------
     import openjarvis
+
     console.print(
         Panel(
-            f"[bold green]OpenJarvis[/bold green] [dim]v{openjarvis.__version__}[/dim]\n"
+            f"[bold green]OpenJarvis[/bold green] "
+            f"[dim]v{openjarvis.__version__}[/dim]\n"
             f"[dim]Engine:[/dim] [cyan]{engine_name}[/cyan]  "
             f"[dim]Model:[/dim] [cyan]{model}[/cyan]  "
             f"[dim]Agent:[/dim] [cyan]{agent_key or 'direct'}[/cyan]\n"
@@ -256,7 +271,7 @@ def chat(
     # ---- Conversation state ----------------------------------------------------
     history: List[Message] = []
     active_system = system_prompt
-    multiline     = False
+    multiline = False
 
     def _messages_for_generate() -> List[Message]:
         if active_system:
@@ -282,10 +297,10 @@ def chat(
             _print_help(console)
             continue
 
-        parts   = user_input_stripped.split(None, 1)
+        parts = user_input_stripped.split(None, 1)
         raw_cmd = parts[0].lower()
-        cmd     = _CMD_ALIASES.get(raw_cmd, raw_cmd)
-        rest    = parts[1].strip() if len(parts) > 1 else ""
+        cmd = _CMD_ALIASES.get(raw_cmd, raw_cmd)
+        rest = parts[1].strip() if len(parts) > 1 else ""
 
         # ---- Slash command dispatch --------------------------------------------
 
@@ -309,17 +324,24 @@ def chat(
                         Message(
                             role=Role.USER,
                             content=(
-                                "Summarize this conversation so far in a concise paragraph, "
+                               "Summarize this conversation so far "
+                                "in a concise paragraph, "
                                 "preserving all key facts and decisions."
                             ),
                         )
                     ]
-                    result  = engine.generate(summary_msgs, model=model)
-                    summary = result.get("content", "") if isinstance(result, dict) else str(result)
+                    result = engine.generate(summary_msgs, model=model)
+                    summary = (
+                        result.get("content", "")
+                        if isinstance(result, dict)
+                        else str(result)
+                    )
                     history.clear()
                     history.append(
-                        Message(role=Role.ASSISTANT,
-                                content=f"[Conversation summary]\n{summary}")
+                        Message(
+                            role=Role.ASSISTANT,
+                            content=f"[Conversation summary]\n{summary}",
+                        )
                     )
                     console.print("[dim]History compacted.[/dim]")
                 except Exception as exc:
@@ -332,8 +354,12 @@ def chat(
             else:
                 for msg in msgs:
                     role_str = msg.role if isinstance(msg.role, str) else msg.role.value
-                    preview  = msg.content[:300] + ("…" if len(msg.content) > 300 else "")
-                    console.print(f"[bold cyan]{role_str.upper()}[/bold cyan]: {preview}")
+                    preview = msg.content[:300] + (
+                        "…" if len(msg.content) > 300 else ""
+                    )
+                    console.print(
+                        f"[bold cyan]{role_str.upper()}[/bold cyan]: {preview}"
+                    )
 
         elif cmd == "/model":
             if rest:
@@ -348,10 +374,13 @@ def chat(
         elif cmd == "/engine":
             if rest:
                 from openjarvis.engine import get_engine as _ge
+
                 resolved2 = _ge(config, rest)
                 if resolved2:
                     engine_name, engine = resolved2
-                    console.print(f"[dim]Switched to engine [cyan]{engine_name}[/cyan].[/dim]")
+                    console.print(
+                        f"[dim]Switched to engine [cyan]{engine_name}[/cyan].[/dim]"
+                    )
                 else:
                     console.print(f"[red]Engine '{rest}' not available.[/red]")
             else:
@@ -360,7 +389,9 @@ def chat(
         elif cmd == "/agent":
             if rest:
                 _load_agent(rest)
-                console.print(f"[dim]Agent set to [cyan]{agent_key or 'direct'}[/cyan].[/dim]")
+                console.print(
+                    f"[dim]Agent set to [cyan]{agent_key or 'direct'}[/cyan].[/dim]"
+                )
             else:
                 console.print(f"[dim]Agent:[/dim] [cyan]{agent_key or 'direct'}[/cyan]")
 
@@ -372,22 +403,32 @@ def chat(
                 if active_system:
                     console.print(f"[dim]System prompt:[/dim] {active_system}")
                 else:
-                    console.print("[dim]No system prompt set. Usage: /system <prompt>[/dim]")
+                    console.print(
+                        "[dim]No system prompt set. Usage: /system <prompt>[/dim]"
+                    )
 
         elif cmd == "/tools":
             try:
                 import openjarvis.tools  # noqa: F401
                 from openjarvis.core.registry import ToolRegistry
 
-                keys = list(ToolRegistry._registry.keys()) if hasattr(ToolRegistry, "_registry") else []
+                keys = (
+                    list(ToolRegistry._registry.keys())
+                    if hasattr(ToolRegistry, "_registry")
+                    else []
+                )
                 if keys:
                     table = Table(show_header=False, box=None, padding=(0, 2))
                     table.add_column("name", style="cyan")
                     for tname in sorted(keys):
                         table.add_row(tname)
                     console.print(
-                        Panel(table, title="[bold]Available Tools[/bold]",
-                              title_align="left", border_style="dim")
+                        Panel(
+                            table,
+                            title="[bold]Available Tools[/bold]",
+                            title_align="left",
+                            border_style="dim",
+                        )
                     )
                 else:
                     console.print("[dim]No tools registered.[/dim]")
@@ -415,7 +456,7 @@ def chat(
             try:
                 data = [
                     {
-                        "role":    m.role if isinstance(m.role, str) else m.role.value,
+                        "role": m.role if isinstance(m.role, str) else m.role.value,
                         "content": m.content,
                     }
                     for m in _messages_for_generate()
@@ -440,7 +481,8 @@ def chat(
                         else:
                             history.append(Message(role=role, content=entry["content"]))
                     console.print(
-                        f"[dim]Loaded {len(data)} messages from [cyan]{rest}[/cyan].[/dim]"
+                        f"[dim]Loaded {len(data)} messages "
+                        f"from [cyan]{rest}[/cyan].[/dim]"
                     )
                 except Exception as exc:
                     console.print(f"[red]Load failed: {exc}[/red]")
@@ -458,10 +500,18 @@ def chat(
             try:
                 if agent is not None:
                     response = agent.run(user_input_stripped)
-                    content  = response.content if hasattr(response, "content") else str(response)
+                    content = (
+                        response.content
+                        if hasattr(response, "content")
+                        else str(response)
+                    )
                 else:
-                    result  = engine.generate(_messages_for_generate(), model=model)
-                    content = result.get("content", "") if isinstance(result, dict) else str(result)
+                    result = engine.generate(_messages_for_generate(), model=model)
+                    content = (
+                        result.get("content", "")
+                        if isinstance(result, dict)
+                        else str(result)
+                    )
 
                 history.append(Message(role=Role.ASSISTANT, content=content))
                 console.print()
