@@ -64,7 +64,8 @@ def get_provider(model: str) -> str | None:
         return "google"
     if any(model.startswith(p) for p in _MINIMAX_PREFIXES):
         return "minimax"
-    if "/" in model:  # openrouter format: "meta-llama/llama-3-8b"
+    _LOCAL_HF_ORGS = ("mlx-community/", "bartowski/", "unsloth/", "lmstudio-community/")
+    if "/" in model and not any(model.startswith(p) for p in _LOCAL_HF_ORGS):
         return "openrouter"
     return None
 
