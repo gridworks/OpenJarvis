@@ -196,18 +196,50 @@ async def memory_stats(request: Request):
 traces_router = APIRouter(prefix="/v1/traces", tags=["traces"])
 
 
+def _serialise_trace(t) -> dict:
+    """Normalise a Trace dataclass into the shape the frontend expects."""
+    import datetime
+
+    steps = []
+    for s in t.steps:
+        step_type = s.step_type.value if hasattr(s.step_type, "value") else str(s.step_type)
+        data = {**s.input, **s.output, **s.metadata}
+        steps.append(
+            {
+                "step_type": step_type,
+                "duration_ms": s.duration_seconds * 1000,
+                "data": data,
+            }
+        )
+
+    created_at = (
+        datetime.datetime.fromtimestamp(t.started_at, tz=datetime.timezone.utc).isoformat()
+        if t.started_at
+        else ""
+    )
+
+    return {
+        "id": t.trace_id,
+        "query": t.query,
+        "steps": steps,
+        "created_at": created_at,
+        # extra fields the UI may use later
+        "agent": t.agent,
+        "model": t.model,
+        "outcome": t.outcome,
+        "total_tokens": t.total_tokens,
+    }
+
+
 @traces_router.get("")
 async def list_traces(request: Request, limit: int = 20):
     """List recent traces."""
     try:
-        from dataclasses import asdict
-
         store = getattr(request.app.state, "trace_store", None)
         if store is None:
             return {"traces": []}
         traces = store.list_traces(limit=limit)
-        items = [asdict(t) for t in traces]
-        return {"traces": items}
+        return {"traces": [_serialise_trace(t) for t in traces]}
     except Exception as exc:
         return {"traces": [], "error": str(exc)}
 
@@ -216,15 +248,13 @@ async def list_traces(request: Request, limit: int = 20):
 async def get_trace(trace_id: str, request: Request):
     """Get a specific trace by ID."""
     try:
-        from dataclasses import asdict
-
         store = getattr(request.app.state, "trace_store", None)
         if store is None:
             raise HTTPException(status_code=404, detail="Trace not found")
         trace = store.get(trace_id)
         if trace is None:
             raise HTTPException(status_code=404, detail="Trace not found")
-        return asdict(trace)
+        return _serialise_trace(trace)
     except HTTPException:
         raise
     except Exception as exc:

@@ -118,6 +118,9 @@ def create_app(
         cfg = config if config is not None else load_config()
         if cfg.traces.enabled:
             app.state.trace_store = TraceStore(db_path=cfg.traces.db_path)
+            bus = getattr(app.state, "bus", None)
+            if bus is not None:
+                app.state.trace_store.subscribe_to_bus(bus)
     except Exception:
         pass  # traces are optional; don't block server startup
 

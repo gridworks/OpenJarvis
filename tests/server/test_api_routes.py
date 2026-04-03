@@ -89,7 +89,74 @@ class TestSessionRoutes:
 
 
 class TestTraceRoutes:
-    def test_list_traces(self):
+    def test_list_traces_no_store(self):
+        """Returns empty list when no trace_store is on app state."""
         client = TestClient(_make_app())
         resp = client.get("/v1/traces")
         assert resp.status_code == 200
+        assert resp.json() == {"traces": []}
+
+    def test_list_traces_with_store(self):
+        """Traces are serialised with frontend-expected field names."""
+        import time
+        from unittest.mock import MagicMock
+
+        from openjarvis.core.types import StepType, Trace, TraceStep
+        from openjarvis.server.api_routes import _serialise_trace
+
+        step = TraceStep(
+            step_type=StepType.GENERATE,
+            timestamp=time.time(),
+            duration_seconds=1.5,
+            input={"prompt": "hello"},
+            output={"tokens": 42},
+        )
+        trace = Trace(
+            trace_id="test-id-123",
+            query="what is 2+2?",
+            started_at=1_700_000_000.0,
+            steps=[step],
+        )
+
+        result = _serialise_trace(trace)
+
+        assert result["id"] == "test-id-123"
+        assert result["query"] == "what is 2+2?"
+        assert "created_at" in result
+        assert result["created_at"] != ""
+        assert len(result["steps"]) == 1
+        s = result["steps"][0]
+        assert s["step_type"] == "generate"
+        assert s["duration_ms"] == pytest.approx(1500.0)
+        assert "data" in s
+        assert s["data"]["tokens"] == 42
+        assert s["data"]["prompt"] == "hello"
+
+    def test_get_trace_not_found(self):
+        client = TestClient(_make_app())
+        resp = client.get("/v1/traces/nonexistent-id")
+        assert resp.status_code == 404
+
+
+class TestTraceStoreBusWiring:
+    def test_trace_store_subscribed_to_bus(self, tmp_path):
+        """TraceStore must be subscribed to the event bus on startup."""
+        from unittest.mock import MagicMock, patch
+
+        from openjarvis.core.events import EventBus, EventType
+        from openjarvis.server.app import create_app
+
+        bus = EventBus()
+        db_path = str(tmp_path / "traces.db")
+
+        # Patch at the source module so the local import in create_app picks it up
+        with patch("openjarvis.traces.store.TraceStore") as MockStore:
+            mock_store = MockStore.return_value
+            cfg = MagicMock()
+            cfg.traces.enabled = True
+            cfg.traces.db_path = db_path
+
+            app = create_app(engine=None, model="", bus=bus, config=cfg)
+
+        MockStore.assert_called_once_with(db_path=db_path)
+        mock_store.subscribe_to_bus.assert_called_once_with(bus)
