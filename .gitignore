@@ -18,6 +18,9 @@ env/
 .idea/
 .vscode/
 *.swp
+
+# Personal Claude instructions (not for repo)
+CLAUDE.md
 *.swo
 *~
 
