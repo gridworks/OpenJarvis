@@ -22,6 +22,7 @@ env/
 # Personal local files (not for repo)
 CLAUDE.md
 SETUP.md
+start-jarvis.sh
 *.swo
 *~
 
