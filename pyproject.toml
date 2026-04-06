@@ -30,8 +30,8 @@ dev = [
     "ruff>=0.4",
     "pre-commit>=3.0",
 ]
-inference-mlx = ["mlx-lm>=0.19; sys_platform == 'darwin'"]
-inference-vllm = ["vllm>=0.16.0"]
+inference-mlx = ["mlx-lm>=0.30; sys_platform == 'darwin'"]
+inference-vllm = ["vllm>=0.16.0; sys_platform != 'darwin'"]
 inference-cloud = [
     "openai>=1.30",
     "anthropic>=0.30",
@@ -112,6 +112,14 @@ docs = [
 
 [project.scripts]
 jarvis = "openjarvis.cli:main"
+
+[tool.uv]
+conflicts = [
+    [
+        { extra = "inference-mlx" },
+        { extra = "inference-vllm" },
+    ],
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/openjarvis"]
