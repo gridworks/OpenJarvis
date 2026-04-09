@@ -1527,7 +1527,16 @@ def create_agent_manager_router(
                                 _build_deep_research_tools,
                             )
 
-                            tools = _build_deep_research_tools(engine=engine, model="")
+                            _agent_rec = manager.get_agent(agent_id)
+                            _agent_cfg = (_agent_rec or {}).get("config", {})
+                            _ch_model = (
+                                _agent_cfg.get("model")
+                                or getattr(engine, "_model", "")
+                                or getattr(request.app.state, "model", "")
+                            )
+                            tools = _build_deep_research_tools(
+                                engine=engine, model=_ch_model
+                            )
                             if tools:
                                 from openjarvis.agents.deep_research import (
                                     DeepResearchAgent,
@@ -1535,7 +1544,7 @@ def create_agent_manager_router(
 
                                 agent_inst = DeepResearchAgent(
                                     engine=engine,
-                                    model=getattr(engine, "_model", ""),
+                                    model=_ch_model,
                                     tools=tools,
                                     interactive=True,
                                     confirm_callback=lambda _prompt: True,
