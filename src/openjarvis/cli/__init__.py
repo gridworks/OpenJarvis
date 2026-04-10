@@ -24,6 +24,7 @@ from openjarvis.cli.feedback_cmd import feedback_group
 from openjarvis.cli.gateway_cmd import gateway
 from openjarvis.cli.host_cmd import host
 from openjarvis.cli.init_cmd import init
+from openjarvis.cli.knowledge_cmd import knowledge
 from openjarvis.cli.memory_cmd import memory
 from openjarvis.cli.model import model
 from openjarvis.cli.operators_cmd import operators
@@ -67,6 +68,7 @@ cli.add_command(ask, "ask")
 cli.add_command(chat, "chat")
 cli.add_command(serve, "serve")
 cli.add_command(model, "model")
+cli.add_command(knowledge, "knowledge")
 cli.add_command(memory, "memory")
 cli.add_command(telemetry, "telemetry")
 cli.add_command(bench, "bench")
