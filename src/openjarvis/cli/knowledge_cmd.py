@@ -15,7 +15,7 @@ def knowledge() -> None:
 
 
 @knowledge.command("list")
-@click.option("--source", "-s", default=None, help="Filter by source (e.g. hackernews, gmail).")
+@click.option("--source", "-s", default=None, help="Filter by source.")
 @click.option("--limit", "-n", default=20, show_default=True, help="Max rows to show.")
 def list_cmd(source: str | None, limit: int) -> None:
     """List what's stored in the knowledge base, grouped by source."""
@@ -47,7 +47,7 @@ def list_cmd(source: str | None, limit: int) -> None:
         ).fetchall()
 
     if not rows:
-        msg = f"No chunks found" + (f" for source='{source}'" if source else "") + "."
+        msg = "No chunks found" + (f" for source='{source}'" if source else "") + "."
         console.print(f"[yellow]{msg}[/yellow]")
         return
 
@@ -94,9 +94,73 @@ def sources_cmd() -> None:
     table.add_column("Last Synced", style="dim", no_wrap=True)
 
     for row in rows:
-        table.add_row(row["source"], row["doc_type"], str(row["chunks"]), row["last_sync"] or "—")
+        table.add_row(
+            row["source"], row["doc_type"], str(row["chunks"]), row["last_sync"] or "—"
+        )
 
     console.print(table)
+
+
+@knowledge.command("chat")
+@click.option("--model", "-m", default=None, help="Model override.")
+def chat_cmd(model: str | None) -> None:
+    """Interactive deep-research chat against the local knowledge store."""
+    from openjarvis.agents.deep_research import DeepResearchAgent
+    from openjarvis.connectors.retriever import TwoStageRetriever
+    from openjarvis.connectors.store import KnowledgeStore
+    from openjarvis.core.config import load_config
+    from openjarvis.engine import get_engine
+    from openjarvis.tools.knowledge_search import KnowledgeSearchTool
+    from openjarvis.tools.knowledge_sql import KnowledgeSQLTool
+    from openjarvis.tools.scan_chunks import ScanChunksTool
+    from openjarvis.tools.think import ThinkTool
+
+    config = load_config()
+    resolved = get_engine(config, None)
+    if resolved is None:
+        console.print("[red]No inference engine available. Is Ollama running?[/red]")
+        return
+
+    engine_name, engine = resolved
+    model_name = model or config.intelligence.default_model or ""
+    console.print(f"[dim]Engine: {engine_name}  Model: {model_name}[/dim]\n")
+
+    store = KnowledgeStore()
+    rows = store._conn.execute(
+        "SELECT source, COUNT(*) as n FROM knowledge_chunks GROUP BY source"
+    ).fetchall()
+    if not rows:
+        console.print(
+            "[yellow]Knowledge base is empty. Sync a connector first.[/yellow]"
+        )
+        return
+
+    parts = [f"{r['source']} ({r['n']})" for r in rows]
+    console.print(f"[green]Knowledge base:[/green] {', '.join(parts)}")
+    console.print("Type your question. [bold]/quit[/bold] to exit.\n")
+
+    retriever = TwoStageRetriever(store)
+    tools = [
+        KnowledgeSearchTool(retriever=retriever),
+        KnowledgeSQLTool(store=store),
+        ScanChunksTool(store=store, engine=engine, model=model_name),
+        ThinkTool(),
+    ]
+
+    agent = DeepResearchAgent(
+        engine=engine, model=model_name, tools=tools, interactive=True
+    )
+
+    while True:
+        try:
+            query = console.input("[bold blue]knowledge>[/bold blue] ").strip()
+        except (EOFError, KeyboardInterrupt):
+            break
+        if not query:
+            continue
+        if query in ("/quit", "/exit", "quit", "exit"):
+            break
+        agent.run(query)
 
 
 @knowledge.command("search")
@@ -117,7 +181,10 @@ def search_cmd(query: str, source: str | None, top_k: int) -> None:
     for i, r in enumerate(results, 1):
         title = r.metadata.get("title", "")
         url = r.metadata.get("url", "")
-        console.print(f"\n[bold cyan]Result {i}[/bold cyan] [dim](score={r.score:.2f}, source={r.source})[/dim]")
+        console.print(
+            f"\n[bold cyan]Result {i}[/bold cyan] "
+            f"[dim](score={r.score:.2f}, source={r.source})[/dim]"
+        )
         if title:
             console.print(f"  [bold]{title}[/bold]")
         console.print(f"  {r.content}")
