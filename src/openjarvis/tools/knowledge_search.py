@@ -42,9 +42,12 @@ class KnowledgeSearchTool(BaseTool):
         return ToolSpec(
             name="knowledge_search",
             description=(
-                "Search ingested personal knowledge (emails, Slack messages,"
-                " documents) using full-text BM25 retrieval with optional"
-                " filters for source, type, author, and date range."
+                "Search the knowledge base using full-text BM25 retrieval."
+                " Contains personal data (emails, Slack messages, documents)"
+                " as well as external feeds (Hacker News, RSS, news)."
+                " Use this tool for any question about synced content,"
+                " including tech news and current stories."
+                " Supports optional filters for source, type, author, and date range."
             ),
             parameters={
                 "type": "object",
@@ -56,8 +59,8 @@ class KnowledgeSearchTool(BaseTool):
                     "source": {
                         "type": "string",
                         "description": (
-                            "Filter by source connector"
-                            " (e.g. 'gmail', 'slack', 'obsidian')."
+                            "Filter by source connector (e.g. 'gmail',"
+                            " 'slack', 'obsidian', 'hackernews', 'news_rss')."
                         ),
                     },
                     "doc_type": {

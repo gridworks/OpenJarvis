@@ -102,6 +102,7 @@ def imessage_start(
             TwoStageRetriever,
         )
         from openjarvis.connectors.store import KnowledgeStore
+        from openjarvis.core.config import load_config
         from openjarvis.engine.ollama import OllamaEngine
         from openjarvis.tools.knowledge_search import (
             KnowledgeSearchTool,
@@ -112,6 +113,7 @@ def imessage_start(
         from openjarvis.tools.scan_chunks import ScanChunksTool
         from openjarvis.tools.think import ThinkTool
 
+        _model = load_config().intelligence.default_model or "qwen2.5:7b"
         engine = OllamaEngine()
         store = KnowledgeStore()
         retriever = TwoStageRetriever(store)
@@ -121,13 +123,13 @@ def imessage_start(
             ScanChunksTool(
                 store=store,
                 engine=engine,
-                model="qwen3.5:4b",
+                model=_model,
             ),
             ThinkTool(),
         ]
         agent = DeepResearchAgent(
             engine=engine,
-            model="qwen3.5:4b",
+            model=_model,
             tools=tools,
         )
 

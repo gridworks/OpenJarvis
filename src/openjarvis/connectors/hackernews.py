@@ -72,7 +72,10 @@ class HackerNewsConnector(BaseConnector):
                 doc_id=f"hn-{story_id}",
                 source="hackernews",
                 doc_type="story",
-                content=f"{title} — by {by} | Score: {score}, Comments: {descendants}",
+                content=(
+                    f"Hacker News story: {title} — by {by}"
+                    f" | Score: {score}, Comments: {descendants}"
+                ),
                 title=title,
                 author=by,
                 timestamp=ts,

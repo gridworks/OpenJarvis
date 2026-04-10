@@ -35,7 +35,11 @@ _DEFAULT_NOTES_DB = (
 
 _DEFAULT_IMESSAGE_DB = Path.home() / "Library" / "Messages" / "chat.db"
 
-_OLLAMA_MODEL = "qwen3.5:4b"
+def _get_model() -> str:
+    from openjarvis.core.config import load_config
+
+    cfg = load_config()
+    return cfg.intelligence.default_model or "qwen2.5:7b"
 
 # ---------------------------------------------------------------------------
 # Detection
@@ -287,6 +291,8 @@ def _launch_chat(store: KnowledgeStore, console: Console) -> None:
 
     console.print("\n[bold]Setting up Deep Research agent...[/bold]")
 
+    model = _get_model()
+
     # Engine
     engine = OllamaEngine()
     if not engine.health():
@@ -296,13 +302,13 @@ def _launch_chat(store: KnowledgeStore, console: Console) -> None:
         return
 
     models = engine.list_models()
-    if _OLLAMA_MODEL not in models and f"{_OLLAMA_MODEL}:latest" not in models:
-        base_name = _OLLAMA_MODEL.split(":")[0]
+    if model not in models and f"{model}:latest" not in models:
+        base_name = model.split(":")[0]
         matching = [m for m in models if m.startswith(base_name)]
         if not matching:
             console.print(
-                f"[yellow]Model {_OLLAMA_MODEL} not found.[/yellow] "
-                f"Pull it with: [bold]ollama pull {_OLLAMA_MODEL}[/bold]"
+                f"[yellow]Model {model} not found.[/yellow] "
+                f"Pull it with: [bold]ollama pull {model}[/bold]"
             )
             return
 
@@ -311,20 +317,20 @@ def _launch_chat(store: KnowledgeStore, console: Console) -> None:
     tools = [
         KnowledgeSearchTool(retriever=retriever),
         KnowledgeSQLTool(store=store),
-        ScanChunksTool(store=store, engine=engine, model=_OLLAMA_MODEL),
+        ScanChunksTool(store=store, engine=engine, model=model),
         ThinkTool(),
     ]
 
     # Agent
     agent = DeepResearchAgent(
         engine=engine,
-        model=_OLLAMA_MODEL,
+        model=model,
         tools=tools,
         interactive=True,
     )
 
     console.print(
-        f"[green]Ready![/green] Using [bold]{_OLLAMA_MODEL}[/bold] via Ollama.\n"
+        f"[green]Ready![/green] Using [bold]{model}[/bold] via Ollama.\n"
         "Tools: knowledge_search, knowledge_sql, scan_chunks, think\n"
         "Type your research question. Type [bold]/quit[/bold] to exit.\n"
     )
