@@ -420,10 +420,20 @@ class InstrumentedEngine(InferenceEngine):
 
         engine_id = getattr(self._inner, "engine_id", "unknown")
 
+        # Pick up prompt-token counts that the inner engine recorded during
+        # streaming (e.g. Ollama's _last_stream_usage from the done chunk).
+        stream_usage = getattr(self._inner, "_last_stream_usage", {})
+        prompt_tok = stream_usage.get("prompt_tokens", 0)
+        prompt_tok_evaluated = stream_usage.get("prompt_tokens_evaluated", prompt_tok)
+        total_tok = prompt_tok + token_count
+
         record = TelemetryRecord(
             timestamp=t0,
             model_id=model,
+            prompt_tokens=prompt_tok,
+            prompt_tokens_evaluated=prompt_tok_evaluated,
             completion_tokens=token_count,
+            total_tokens=total_tok,
             latency_seconds=latency,
             ttft=ttft,
             throughput_tok_per_sec=throughput,

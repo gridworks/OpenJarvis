@@ -42,6 +42,10 @@ _CHIP_TDP: dict[str, float] = {
     "M4": 15.0,
     "M4 Pro": 30.0,
     "M4 Max": 60.0,
+    "M5": 15.0,
+    "M5 Pro": 30.0,
+    "M5 Max": 60.0,
+    "M5 Ultra": 90.0,
 }
 
 
