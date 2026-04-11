@@ -111,3 +111,6 @@ learning.db
 **/learning/benchmarks/
 **/teacher_traces/
 *.session.json
+
+# Local notes
+Jarvis-Bash-Commands.md

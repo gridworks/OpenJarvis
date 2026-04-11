@@ -137,6 +137,9 @@ sleep 3
 
 if curl -sf http://localhost:8000/health &>/dev/null; then
   ok "Backend running at http://localhost:8000"
+  # Write PID file so `jarvis status` can detect the server
+  mkdir -p "$HOME/.openjarvis"
+  echo "${CLEANUP_PIDS##* }" > "$HOME/.openjarvis/server.pid"
 else
   warn "Backend may still be starting..."
 fi
