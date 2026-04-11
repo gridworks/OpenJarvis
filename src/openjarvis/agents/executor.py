@@ -133,26 +133,25 @@ class AgentExecutor:
         trace_steps: list[dict[str, Any]] = []
 
         def _on_tool_start(event: Any) -> None:
-            if event.data.get("agent") == agent_id:
-                trace_steps.append(
-                    {
-                        "type": "tool_call",
-                        "input": {
-                            "tool": event.data.get("tool"),
-                            "args": event.data.get("args"),
-                        },
-                        "start_time": event.timestamp,
-                    }
-                )
+            trace_steps.append(
+                {
+                    "type": "tool_call",
+                    "input": {
+                        "tool": event.data.get("tool"),
+                        "args": event.data.get("arguments"),
+                    },
+                    "start_time": event.timestamp,
+                }
+            )
 
         def _on_tool_end(event: Any) -> None:
-            if event.data.get("agent") == agent_id and trace_steps:
+            if trace_steps:
                 for step in reversed(trace_steps):
                     if step["type"] == "tool_call" and "output" not in step:
                         step["output"] = {
                             "result": str(event.data.get("result", ""))[:4096],
                         }
-                        step["duration"] = event.data.get("duration", 0)
+                        step["duration"] = event.data.get("latency", 0)
                         break
 
         if self._trace_store:
@@ -318,6 +317,8 @@ class AgentExecutor:
             agent_kwargs["system_prompt"] = sys_prompt
         if getattr(agent_cls, "accepts_tools", False) and tool_instances:
             agent_kwargs["tools"] = tool_instances
+        agent_kwargs["agent_id"] = agent["id"]
+        agent_kwargs["bus"] = self._bus
         try:
             agent_instance = agent_cls(engine, model, **agent_kwargs)
         except TypeError:

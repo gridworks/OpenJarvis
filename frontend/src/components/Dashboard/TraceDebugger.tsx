@@ -1,19 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { GitBranch, Clock, ChevronRight, ChevronDown } from 'lucide-react';
 
-interface TraceStepData {
-  model?: string;
-  tokens?: number;
-  tool?: string;
-  input?: string;
-  output?: string;
-  [key: string]: unknown;
-}
-
 interface TraceStep {
   step_type: string;
-  duration_ms: number;
-  data: TraceStepData;
+  duration_seconds: number;
+  input: Record<string, unknown>;
+  output: Record<string, unknown>;
+  metadata: Record<string, unknown>;
 }
 
 interface TraceSummary {
@@ -21,6 +14,8 @@ interface TraceSummary {
   query: string;
   steps: TraceStep[];
   created_at: string;
+  outcome: string | null;
+  duration_ms: number;
 }
 
 const STEP_COLORS: Record<string, string> = {
@@ -45,7 +40,7 @@ function StepBadge({ type }: { type: string }) {
 }
 
 function TraceCard({ trace, isActive, onClick }: { trace: TraceSummary; isActive: boolean; onClick: () => void }) {
-  const totalMs = trace.steps.reduce((sum, s) => sum + s.duration_ms, 0);
+  const totalMs = trace.steps.reduce((sum, s) => sum + s.duration_seconds * 1000, 0);
 
   return (
     <button
@@ -74,7 +69,10 @@ function TraceCard({ trace, isActive, onClick }: { trace: TraceSummary; isActive
 
 function StepDetail({ step, index }: { step: TraceStep; index: number }) {
   const [expanded, setExpanded] = useState(false);
-  const dataEntries = Object.entries(step.data).filter(([_, v]) => v != null);
+  const dataEntries: [string, unknown][] = [
+    ...Object.entries(step.input || {}).map(([k, v]): [string, unknown] => [`in.${k}`, v]),
+    ...Object.entries(step.output || {}).map(([k, v]): [string, unknown] => [`out.${k}`, v]),
+  ].filter(([_, v]) => v != null);
 
   return (
     <div
@@ -96,7 +94,7 @@ function StepDetail({ step, index }: { step: TraceStep; index: number }) {
         <span className="flex-1" />
         <span className="text-xs font-mono flex items-center gap-1" style={{ color: 'var(--color-text-tertiary)' }}>
           <Clock size={10} />
-          {step.duration_ms.toFixed(0)}ms
+          {(step.duration_seconds * 1000).toFixed(0)}ms
         </span>
       </button>
       {expanded && dataEntries.length > 0 && (
