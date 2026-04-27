@@ -459,6 +459,12 @@ async def list_models(request: Request) -> ModelListResponse:
     if not model_ids:
         model_ids = await list_local_models()
 
+    # Sort so the configured default_model always appears first
+    from openjarvis.core.config import load_config
+    default_model = load_config().intelligence.default_model
+    if default_model and default_model in model_ids:
+        model_ids = [default_model] + [m for m in model_ids if m != default_model]
+
     return ModelListResponse(
         data=[ModelObject(id=mid) for mid in model_ids],
     )

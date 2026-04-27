@@ -1901,7 +1901,7 @@ function InteractTab({ agentId, agentStatus }: { agentId: string; agentStatus: s
   // Reverse so newest messages appear at the bottom (closest to input).
   // Filter out agent responses with empty content.
   const displayMessages = [...messages]
-    .filter((m) => m.direction === 'user_to_agent' || m.content.trim())
+    .filter((m) => m.direction === 'user_to_agent' || m.content?.trim())
     .reverse();
 
   return (
